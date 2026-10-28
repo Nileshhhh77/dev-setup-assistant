@@ -1,0 +1,26 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Chainlit runtime and uploads
+.chainlit/translations/
+.chainlit/configured
+.files/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,10 @@
+chainlit
+qdrant-client
+groq
+sentence-transformers
+python-dotenv
+passlib[bcrypt]
+psycopg2-binary
+asyncpg
+fastapi
+uvicorn

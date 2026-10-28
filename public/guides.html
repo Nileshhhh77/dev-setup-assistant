@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Developer Installation Guides</title>
+    <link rel="stylesheet" href="/public/theme.css">
+    <style>
+        :root{--ink:#172033;--muted:#69758a;--brand:#0f766e;--line:#dde7e3;--canvas:#f4f7f5}*{box-sizing:border-box}body{margin:0;font-family:Inter,"Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--canvas);line-height:1.55}.topbar{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center}.topbar-inner{width:min(1180px,calc(100% - 40px));margin:auto;display:flex;align-items:center;justify-content:space-between}.brand{font-weight:800;display:flex;align-items:center;gap:10px}.brand-mark{width:38px;height:38px;border-radius:11px;background:var(--brand);color:#fff;display:grid;place-items:center}.back-btn{color:#555f73;text-decoration:none;font-weight:700;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#fff}.back-btn:hover{border-color:#bbbfe8;color:var(--brand)}.container{width:min(1180px,calc(100% - 40px));margin:44px auto}.hero{display:flex;justify-content:space-between;align-items:end;margin-bottom:26px}.hero h1{font-size:44px;letter-spacing:-2px;margin:0 0 8px}.hero p{margin:0;color:var(--muted)}.search{width:320px;height:48px;border:1px solid var(--line);border-radius:12px;padding:0 16px;font-size:14px;outline:none;background:#fff}.search:focus{border-color:#14b8a6;box-shadow:0 0 0 4px rgba(20,184,166,.1)}.toolbar{display:flex;gap:8px;margin-bottom:20px}.filter{border:1px solid var(--line);background:#fff;color:#555f73;border-radius:999px;padding:9px 16px;font-weight:700;cursor:pointer}.filter.active{background:var(--brand);border-color:var(--brand);color:#fff}.guides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.guide-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 10px 30px rgba(23,32,51,.05)}.guide-box.hidden{display:none}.guide-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.guide-head h2{margin:0;font-size:20px}.badge{font-size:12px;padding:5px 8px;border-radius:7px;background:#ecfdf5;color:#0f766e;font-weight:800}.os-tabs{display:flex;gap:6px;margin-bottom:14px}.os-tab{border:0;background:#f2f4f8;color:#667086;border-radius:8px;padding:7px 11px;font-weight:700;cursor:pointer}.os-tab.active{background:#ccfbf1;color:#115e59}.os-content{display:none;font-size:14px}.os-content.active{display:block}.os-content p{margin:7px 0}.step-list{padding-left:20px;margin:8px 0}.step-list li{margin:8px 0}code{background:#eef1f7;color:#3d4660;padding:3px 6px;border-radius:6px;font-family:Consolas,monospace;font-size:13px}.code-row{display:flex;align-items:center;gap:8px;background:#172033;color:#dfe5ff;border-radius:10px;padding:10px 12px;margin:10px 0}.code-row code{flex:1;background:transparent;color:#dfe5ff;padding:0}.copy{border:0;background:#343d56;color:#fff;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:12px}.verify{border-left:3px solid #34b37a;padding:8px 10px;background:#effaf5;border-radius:0 8px 8px 0}@media(max-width:800px){.hero{align-items:start;flex-direction:column;gap:16px}.search{width:100%}.guides{grid-template-columns:1fr}.hero h1{font-size:36px}.container{margin-top:28px}}
+    </style>
+</head>
+<body>
+    <header class="topbar"><div class="topbar-inner"><div class="brand"><span class="brand-mark">⌘</span>Dev Setup Assistant</div><a href="/chat" class="back-btn">← Back to workspace</a></div></header>
+    <div class="container">
+        <div class="hero"><div><h1>Installation guides</h1><p>Choose an operating system and follow verified setup steps.</p></div><input id="guideSearch" class="search" type="search" placeholder="Search tools and guides…" aria-label="Search installation guides"></div>
+        <div class="toolbar" aria-label="Filter guides"><button class="filter active" data-filter="all">All tools</button><button class="filter" data-filter="windows">Windows</button><button class="filter" data-filter="macos">macOS</button><button class="filter" data-filter="linux">Linux</button></div>
+        <div class="guides">
+        <!-- Python Guide -->
+        <div class="guide-box">
+            <h2>🐍 Python</h2>
+            <div class="os-tabs">
+                <button class="os-tab" onclick="showTab('py-win')">Windows</button>
+                <button class="os-tab" onclick="showTab('py-mac')">macOS</button>
+                <button class="os-tab" onclick="showTab('py-linux')">Linux</button>
+            </div>
+            <div id="py-win" class="os-content active">
+                <p>1. Download the installer from <a href="https://www.python.org/downloads/" target="_blank" style="color:#ff4b4b;">python.org</a>.</p>
+                <p>2. <strong>Important:</strong> Check the box <code>Add Python to PATH</code> during installation.</p>
+                <p>3. Verify by running: <code>python --version</code></p>
+            </div>
+            <div id="py-mac" class="os-content">
+                <p>1. Open Terminal.</p>
+                <p>2. Run: <code>brew install python</code></p>
+                <p>3. Verify: <code>python3 --version</code></p>
+            </div>
+            <div id="py-linux" class="os-content">
+                <p>1. Open Terminal.</p>
+                <p>2. Run: <code>sudo apt update && sudo apt install python3</code></p>
+                <p>3. Verify: <code>python3 --version</code></p>
+            </div>
+        </div>
+
+        <!-- Node.js Guide -->
+        <div class="guide-box">
+            <h2>🟢 Node.js</h2>
+            <div class="os-tabs">
+                <button class="os-tab" onclick="showTab('node-win')">Windows</button>
+                <button class="os-tab" onclick="showTab('node-mac')">macOS</button>
+                <button class="os-tab" onclick="showTab('node-linux')">Linux</button>
+            </div>
+            <div id="node-win" class="os-content active">
+                <p>1. Download the Windows Installer from <a href="https://nodejs.org/" target="_blank" style="color:#ff4b4b;">nodejs.org</a>.</p>
+                <p>2. Run the installer and follow the prompts.</p>
+                <p>3. Verify: <code>node -v</code> and <code>npm -v</code></p>
+            </div>
+            <div id="node-mac" class="os-content">
+                <p>1. Open Terminal.</p>
+                <p>2. Run: <code>brew install node</code></p>
+                <p>3. Verify: <code>node -v</code></p>
+            </div>
+            <div id="node-linux" class="os-content">
+                <p>1. Run: <code>sudo apt update && sudo apt install nodejs npm</code></p>
+                <p>2. Verify: <code>node -v</code></p>
+            </div>
+        </div>
+
+        <!-- Java Guide -->
+        <div class="guide-box">
+            <h2>☕ Java (JDK)</h2>
+            <div class="os-tabs">
+                <button class="os-tab" onclick="showTab('java-win')">Windows</button>
+                <button class="os-tab" onclick="showTab('java-mac')">macOS</button>
+                <button class="os-tab" onclick="showTab('java-linux')">Linux</button>
+            </div>
+            <div id="java-win" class="os-content active">
+                <p>1. Download the JDK from <a href="https://adoptium.net/" target="_blank" style="color:#ff4b4b;">Adoptium</a>.</p>
+                <p>2. Run the installer and set <code>JAVA_HOME</code> in Environment Variables.</p>
+                <p>3. Verify: <code>java -version</code></p>
+            </div>
+            <div id="java-mac" class="os-content">
+                <p>1. Open Terminal.</p>
+                <p>2. Run: <code>brew install openjdk</code></p>
+                <p>3. Verify: <code>java -version</code></p>
+            </div>
+            <div id="java-linux" class="os-content">
+                <p>1. Run: <code>sudo apt install openjdk-17-jdk</code></p>
+                <p>2. Verify: <code>java -version</code></p>
+            </div>
+        </div>
+
+        <!-- C++ Guide -->
+        <div class="guide-box">
+            <h2>⚙️ C++ (GCC/Clang)</h2>
+            <div class="os-tabs">
+                <button class="os-tab" onclick="showTab('cpp-win')">Windows</button>
+                <button class="os-tab" onclick="showTab('cpp-mac')">macOS</button>
+                <button class="os-tab" onclick="showTab('cpp-linux')">Linux</button>
+            </div>
+            <div id="cpp-win" class="os-content active">
+                <p>1. Install <strong>MinGW</strong> or <strong>Visual Studio Community</strong> with C++ workload.</p>
+                <p>2. Add the <code>bin</code> folder to your System PATH.</p>
+                <p>3. Verify: <code>g++ --version</code></p>
+            </div>
+            <div id="cpp-mac" class="os-content">
+                <p>1. Open Terminal.</p>
+                <p>2. Run: <code>xcode-select --install</code></p>
+                <p>3. Verify: <code>clang++ --version</code></p>
+            </div>
+            <div id="cpp-linux" class="os-content">
+                <p>1. Run: <code>sudo apt install build-essential</code></p>
+                <p>2. Verify: <code>g++ --version</code></p>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(id) {
+            const selected=document.getElementById(id);
+            const box=selected.closest('.guide-box');
+            box.querySelectorAll('.os-content').forEach(c=>c.classList.remove('active'));
+            box.querySelectorAll('.os-tab').forEach(t=>t.classList.remove('active'));
+            selected.classList.add('active');
+            document.querySelector(`[onclick="showTab('${id}')"]`)?.classList.add('active');
+        }
+        const search=document.getElementById('guideSearch');
+        search.addEventListener('input',()=>{
+            const query=search.value.trim().toLowerCase();
+            document.querySelectorAll('.guide-box').forEach(card=>{
+                card.classList.toggle('hidden',query&&!card.textContent.toLowerCase().includes(query));
+            });
+        });
+        document.querySelectorAll('.os-tab').forEach(tab=>tab.addEventListener('click',()=>tab.classList.add('active')));
+        document.querySelectorAll('.filter').forEach(button=>button.addEventListener('click',()=>{
+            document.querySelectorAll('.filter').forEach(b=>b.classList.remove('active'));
+            button.classList.add('active');
+            const os=button.dataset.filter;
+            document.querySelectorAll('.guide-box').forEach(card=>{
+                if(os==='all')card.classList.remove('hidden');
+                else {
+                    const hasContent=Array.from(card.querySelectorAll('.os-content')).some(c=>c.id.endsWith(`-${os==='macos'?'mac':os}`));
+                    card.classList.toggle('hidden',!hasContent);
+                }
+            });
+        }));
+        document.querySelectorAll('.os-content code').forEach(code=>{
+            if(code.textContent.length>18) return;
+            const row=document.createElement('span'); row.className='code-row';
+            row.innerHTML='<code></code><button class="copy" type="button">Copy</button>';
+            row.querySelector('code').textContent=code.textContent;
+            row.querySelector('button').addEventListener('click',async e=>{
+                await navigator.clipboard.writeText(code.textContent);
+                e.currentTarget.textContent='Copied'; setTimeout(()=>e.currentTarget.textContent='Copy',1200);
+            });
+            code.replaceWith(row);
+        });
+    </script>
+    <script src="/public/theme.js"></script>
+</body>
+</html>
