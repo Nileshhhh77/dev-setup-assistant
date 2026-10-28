@@ -5,6 +5,7 @@ import sqlite3
 import chainlit as cl
 from groq import Groq
 import httpx
+import pytesseract
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 
@@ -37,6 +38,97 @@ init_user_db()
 
 # --- CONNECT TO SERVICES ---
 groq_client = None
+OCR_ENGINE = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+if os.path.exists(OCR_ENGINE):
+    pytesseract.pytesseract.tesseract_cmd = OCR_ENGINE
+
+
+def extract_image_text(raw_image):
+    try:
+        from PIL import Image
+        with Image.open(io.BytesIO(raw_image)) as image:
+            image.load()
+            image.thumbnail((2400, 2400), Image.Resampling.LANCZOS)
+            if image.mode not in ("RGB", "L"):
+                image = image.convert("RGB")
+            text = pytesseract.image_to_string(image)
+            return text.strip()
+    except Exception as error:
+        print(f"Image OCR error: {error}")
+        return ""
+
+
+def extract_document_text(raw_file, filename, mime_type):
+    extension = os.path.splitext(filename)[1].lower()
+    try:
+        if extension == ".pdf" or mime_type == "application/pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(raw_file))
+            return "\n".join((page.extract_text() or "") for page in reader.pages).strip()
+
+        if extension == ".docx":
+            from docx import Document
+            document = Document(io.BytesIO(raw_file))
+            paragraphs = [paragraph.text for paragraph in document.paragraphs]
+            for table in document.tables:
+                for row in table.rows:
+                    paragraphs.append(" | ".join(cell.text for cell in row.cells))
+            return "\n".join(paragraphs).strip()
+
+        if extension == ".xlsx":
+            from openpyxl import load_workbook
+            workbook = load_workbook(io.BytesIO(raw_file), read_only=True, data_only=True)
+            lines = []
+            for sheet in workbook.worksheets:
+                lines.append(f"Sheet: {sheet.title}")
+                for row in sheet.iter_rows(values_only=True):
+                    lines.append(" | ".join("" if value is None else str(value) for value in row))
+            return "\n".join(lines).strip()
+
+        if extension == ".pptx":
+            from pptx import Presentation
+            presentation = Presentation(io.BytesIO(raw_file))
+            lines = []
+            for index, slide in enumerate(presentation.slides, start=1):
+                lines.append(f"Slide {index}")
+                for shape in slide.shapes:
+                    if hasattr(shape, "text") and shape.text.strip():
+                        lines.append(shape.text.strip())
+            return "\n".join(lines).strip()
+
+        if extension in {".zip"} or mime_type == "application/zip":
+            import zipfile
+            with zipfile.ZipFile(io.BytesIO(raw_file)) as archive:
+                lines = []
+                for member in archive.infolist():
+                    if member.is_dir() or member.file_size > 2_000_000:
+                        continue
+                    if any(member.filename.lower().endswith(ext) for ext in (".txt", ".md", ".csv", ".json", ".xml", ".yaml", ".yml", ".py", ".js", ".ts", ".html", ".css", ".log")):
+                        try:
+                            lines.append(f"--- {member.filename} ---\n{archive.read(member).decode('utf-8-sig', errors='replace')}")
+                        except Exception:
+                            pass
+                return "\n".join(lines).strip()
+
+        if extension in {".tar", ".tgz", ".tar.gz"} or mime_type in {"application/x-tar", "application/gzip"}:
+            import tarfile
+            with tarfile.open(fileobj=io.BytesIO(raw_file), mode="r:*") as archive:
+                lines = []
+                for member in archive.getmembers():
+                    if not member.isfile() or member.size > 2_000_000:
+                        continue
+                    source = archive.extractfile(member)
+                    if source:
+                        lines.append(f"--- {member.name} ---\n{source.read().decode('utf-8-sig', errors='replace')}")
+                return "\n".join(lines).strip()
+
+        if (mime_type and mime_type.startswith("text/")) or mime_type == "application/json" or extension:
+            decoded = raw_file[:5_000_000].decode("utf-8-sig", errors="replace")
+            if decoded and "\x00" not in decoded:
+                return decoded.strip()
+    except Exception as error:
+        print(f"Document extraction error for {filename}: {error}")
+    return ""
 
 
 def get_groq_client():
@@ -59,7 +151,7 @@ def auth_callback(username: str, password: str):
     try:
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
+        c.execute("SELECT password_hash FROM users WHERE username = ?", (username.strip().lower(),))
         result = c.fetchone()
         conn.close()
 
@@ -88,7 +180,7 @@ async def set_starters():
         cl.Starter(label="Install a tool", message="Help me install Python on my computer. Give me the exact steps and verify the installation."),
         cl.Starter(label="Fix an error", message="I have an installation or setup error. Ask me for the exact error message, operating system, and command I ran."),
         cl.Starter(label="Create a project", message="Guide me through creating a clean development project. Ask about the language, operating system, and tools I need."),
-        cl.Starter(label="Analyze an image", message="I will upload a screenshot or photo of an installation problem. Please inspect it and explain how to fix it."),
+        cl.Starter(label="Analyze a file", message="I will upload a screenshot, PDF, text file, source code, or other document about an installation problem. Please inspect every supported attachment and explain how to fix it."),
     ]
 
 # --- CHAT LOGIC ---
@@ -120,33 +212,41 @@ async def main(message: cl.Message):
 
     # 1. Check for uploaded images
     image_data = None
+    image_text = ""
+    document_texts = []
     if message.elements:
         for element in message.elements:
-            if element.mime and element.mime.startswith("image/"):
-                raw_image = None
-                if hasattr(element, 'content') and element.content:
-                    raw_image = element.content
-                elif hasattr(element, 'path') and element.path:
-                    with open(element.path, "rb") as image_file:
-                        raw_image = image_file.read()
+            filename = getattr(element, "name", "attachment") or "attachment"
+            raw_file = None
+            if hasattr(element, 'content') and element.content:
+                raw_file = element.content
+            elif hasattr(element, 'path') and element.path:
+                with open(element.path, "rb") as attachment:
+                    raw_file = attachment.read()
 
-                if raw_image:
-                    try:
-                        from PIL import Image
-                        with Image.open(io.BytesIO(raw_image)) as image:
-                            image.load()
-                            image.thumbnail((1568, 1568), Image.Resampling.LANCZOS)
-                            if image.mode not in ("RGB", "L"):
-                                image = image.convert("RGB")
-                            output = io.BytesIO()
-                            image.save(output, format="JPEG", quality=85, optimize=True)
-                            base64_image = base64.b64encode(output.getvalue()).decode("utf-8")
-                            image_data = f"data:image/jpeg;base64,{base64_image}"
-                    except Exception as image_error:
-                        print(f"Image preparation error: {image_error}")
-                        base64_image = base64.b64encode(raw_image).decode("utf-8")
-                        image_data = f"data:{element.mime};base64,{base64_image}"
-                break
+            if element.mime and element.mime.startswith("image/") and raw_file:
+                image_text = extract_image_text(raw_file)
+                try:
+                    from PIL import Image
+                    with Image.open(io.BytesIO(raw_file)) as image:
+                        image.load()
+                        image.thumbnail((1568, 1568), Image.Resampling.LANCZOS)
+                        if image.mode not in ("RGB", "L"):
+                            image = image.convert("RGB")
+                        output = io.BytesIO()
+                        image.save(output, format="JPEG", quality=85, optimize=True)
+                        base64_image = base64.b64encode(output.getvalue()).decode("utf-8")
+                        image_data = f"data:image/jpeg;base64,{base64_image}"
+                except Exception as image_error:
+                    print(f"Image preparation error: {image_error}")
+                    base64_image = base64.b64encode(raw_file).decode("utf-8")
+                    image_data = f"data:{element.mime};base64,{base64_image}"
+            elif raw_file:
+                extracted = extract_document_text(raw_file, filename, element.mime)
+                if extracted:
+                    document_texts.append(f"--- {filename} ---\n{extracted[:12000]}")
+                else:
+                    document_texts.append(f"--- {filename} ---\nBinary or unsupported attachment received ({len(raw_file)} bytes). Do not claim that its contents were inspected. Ask the user to upload an extractable format or paste the relevant content.")
 
     # 2. Build a focused, user-friendly system prompt
     profile = cl.user_session.get("chat_profile") or "Windows"
@@ -167,14 +267,19 @@ Use this verified knowledge when relevant:
         messages_for_groq.append({"role": msg["role"], "content": msg["content"]})
         
     # Build the current user message
-    if image_data:
-        # If there's an image, we use the multimodal format ONLY for the current message
-        user_content = [
-            {"type": "text", "text": query},
-            {"type": "image_url", "image_url": {"url": image_data}}
-        ]
-        messages_for_groq.append({"role": "user", "content": user_content})
-        model_to_use = "meta-llama/llama-4-scout-17b-16e-instruct"
+    if document_texts:
+        document_prompt = query or "Analyze the attached documents and help with the requested task."
+        document_prompt += "\n\nAttached file contents:\n" + "\n\n".join(document_texts)
+        messages_for_groq.append({"role": "user", "content": document_prompt})
+        model_to_use = "openai/gpt-oss-120b"
+    elif image_data:
+        image_prompt = query or "Analyze the setup or error shown in this screenshot."
+        if image_text:
+            image_prompt += f"\n\nText extracted from the attached screenshot:\n{image_text[:4000]}"
+        else:
+            image_prompt += "\n\nOCR could not extract readable text. Ask for the exact error message and a clear description of the visible content if needed."
+        messages_for_groq.append({"role": "user", "content": image_prompt})
+        model_to_use = "openai/gpt-oss-120b"
     else:
         messages_for_groq.append({"role": "user", "content": query})
         model_to_use = "openai/gpt-oss-120b"
@@ -190,22 +295,9 @@ Use this verified knowledge when relevant:
     except Exception as e:
         print(f"Groq API error ({model_to_use}) [{type(e).__name__}]: {e}")
         if image_data:
-            try:
-                fallback_messages = messages_for_groq[:-1] + [{
-                    "role": "user",
-                    "content": f"{query}\n\n[An image was attached, but vision processing is temporarily unavailable. Ask for a clear description or screenshot details before diagnosing.]"
-                }]
-                completion = get_groq_client().chat.completions.create(
-                    model="openai/gpt-oss-120b",
-                    messages=fallback_messages,
-                    max_tokens=1024
-                )
-                answer = completion.choices[0].message.content
-            except Exception as fallback_error:
-                print(f"Groq fallback error: {fallback_error}")
-                answer = "⚠️ The AI service is temporarily unreachable from the hosted server. This is not an image-size problem; please wait a minute and try again."
+            answer = "⚠️ The AI service could not process this image. Please verify the Groq API key, internet connection, and that the selected vision model is enabled for your account."
         else:
-            answer = "⚠️ The AI service is temporarily unreachable from the hosted server. Please wait a minute and try again."
+            answer = "⚠️ The AI service is temporarily unreachable. Please check the local internet connection and Groq API key, then try again."
 
     # 6. Save text memory
     history.append({"role": "user", "content": query})

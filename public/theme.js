@@ -2,7 +2,7 @@
   const key = 'dev-assistant-theme';
   const root = document.documentElement;
   const stored = localStorage.getItem(key);
-  const initial = stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const initial = stored || 'light';
   root.dataset.theme = initial;
 
   const button = document.createElement('button');

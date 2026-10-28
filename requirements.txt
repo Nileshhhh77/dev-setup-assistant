@@ -3,6 +3,11 @@ Pillow
 groq
 httpx
 python-dotenv
+pytesseract
+pypdf
+python-docx
+openpyxl
+python-pptx
 passlib[bcrypt]
 fastapi
 uvicorn

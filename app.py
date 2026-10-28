@@ -53,16 +53,17 @@ async def signup(data: SignupModel):
         if len(data.password) < 8:
             return JSONResponse(status_code=400, content={"detail": "Password must be at least 8 characters."})
 
+        username = data.username.strip().lower()
         conn = get_db_connection()
         c = conn.cursor()
 
-        c.execute("SELECT username FROM users WHERE username = ?", (data.username.strip(),))
+        c.execute("SELECT username FROM users WHERE username = ?", (username,))
         if c.fetchone():
             conn.close()
             return JSONResponse(status_code=400, content={"detail": "Email already registered."})
 
         hashed = pwd_context.hash(data.password[:72])
-        c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (data.username.strip(), hashed))
+        c.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (username, hashed))
         conn.commit()
         conn.close()
 
@@ -74,9 +75,10 @@ async def signup(data: SignupModel):
 @app.post("/api/login")
 async def login(data: LoginModel):
     try:
+        username = data.username.strip().lower()
         conn = get_db_connection()
         c = conn.cursor()
-        c.execute("SELECT password_hash FROM users WHERE username = ?", (data.username.strip(),))
+        c.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
         result = c.fetchone()
         conn.close()
 

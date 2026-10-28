@@ -66,9 +66,7 @@ reaction_on_message_received = false
     # 3. For specific file extensions:
     #    accept = { "application/octet-stream" = [".xyz", ".pdb"] }
     # Note: Using "*/*" is not recommended as it may cause browser warnings
-    accept = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]
-    max_files = 20
-    max_size_mb = 500
+    accept = ["*/*"]
 
 [features.audio]
     # Enable audio features
@@ -114,17 +112,17 @@ reaction_on_message_received = false
 
 [UI]
 # Name of the assistant.
-name = "Assistant"
+name = "Dev Setup Assistant"
 
 default_theme = "light"
+layout = "wide"
 
-# Force a specific language for all users (e.g., "en-US", "he-IL", "fr-FR")
+# Keep the workspace focused on the conversation by default.
+default_sidebar_state = "closed"
+
+# Force a specific language for all users (e.g., "en-US", "he-EN")
 # If not set, the browser's language will be used
 # language = "en-US"
-
-# layout = "wide"
-
-# default_sidebar_state = "open"  # Options: "open", "closed", "hidden"
 
 # Chat settings display location: "message_composer" (default) or "sidebar" (header)
 # chat_settings_location = "message_composer"
