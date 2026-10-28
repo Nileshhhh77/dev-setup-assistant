@@ -3,7 +3,6 @@ import base64
 import sqlite3
 import chainlit as cl
 from qdrant_client import QdrantClient
-from sentence_transformers import SentenceTransformer
 from groq import Groq
 from dotenv import load_dotenv
 from passlib.context import CryptContext
@@ -44,6 +43,7 @@ groq_client = None
 def get_embedder():
     global embedder
     if embedder is None:
+        from sentence_transformers import SentenceTransformer
         embedder = SentenceTransformer("all-MiniLM-L6-v2")
     return embedder
 
