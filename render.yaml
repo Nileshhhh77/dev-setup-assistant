@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: dev-setup-assistant
+    runtime: docker
+    plan: free
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
