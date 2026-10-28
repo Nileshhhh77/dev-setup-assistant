@@ -6,6 +6,8 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      - key: CHAINLIT_AUTH_SECRET
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: QDRANT_URL
