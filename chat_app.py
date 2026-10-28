@@ -1,5 +1,6 @@
 import os
 import base64
+import io
 import sqlite3
 import chainlit as cl
 from groq import Groq
@@ -112,14 +113,30 @@ async def main(message: cl.Message):
     image_data = None
     if message.elements:
         for element in message.elements:
-            if "image" in element.mime:
+            if element.mime and element.mime.startswith("image/"):
+                raw_image = None
                 if hasattr(element, 'content') and element.content:
-                    base64_image = base64.b64encode(element.content).decode('utf-8')
-                    image_data = f"data:{element.mime};base64,{base64_image}"
+                    raw_image = element.content
                 elif hasattr(element, 'path') and element.path:
                     with open(element.path, "rb") as image_file:
-                        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-                    image_data = f"data:{element.mime};base64,{base64_image}"
+                        raw_image = image_file.read()
+
+                if raw_image:
+                    try:
+                        from PIL import Image
+                        with Image.open(io.BytesIO(raw_image)) as image:
+                            image.load()
+                            image.thumbnail((1568, 1568), Image.Resampling.LANCZOS)
+                            if image.mode not in ("RGB", "L"):
+                                image = image.convert("RGB")
+                            output = io.BytesIO()
+                            image.save(output, format="JPEG", quality=85, optimize=True)
+                            base64_image = base64.b64encode(output.getvalue()).decode("utf-8")
+                            image_data = f"data:image/jpeg;base64,{base64_image}"
+                    except Exception as image_error:
+                        print(f"Image preparation error: {image_error}")
+                        base64_image = base64.b64encode(raw_image).decode("utf-8")
+                        image_data = f"data:{element.mime};base64,{base64_image}"
                 break
 
     # 2. Build a focused, user-friendly system prompt
@@ -148,7 +165,7 @@ Use this verified knowledge when relevant:
             {"type": "image_url", "image_url": {"url": image_data}}
         ]
         messages_for_groq.append({"role": "user", "content": user_content})
-        model_to_use = "qwen/qwen3.8-27b"
+        model_to_use = "meta-llama/llama-4-scout-17b-16e-instruct"
     else:
         messages_for_groq.append({"role": "user", "content": query})
         model_to_use = "openai/gpt-oss-120b"
@@ -162,8 +179,24 @@ Use this verified knowledge when relevant:
         )
         answer = completion.choices[0].message.content
     except Exception as e:
-        print(f"Groq API error: {e}")
-        answer = "⚠️ I couldn’t complete that request right now. Please try again, remove the attachment, or use a smaller image. If the problem continues, check the AI service configuration."
+        print(f"Groq API error ({model_to_use}): {e}")
+        if image_data:
+            try:
+                fallback_messages = messages_for_groq[:-1] + [{
+                    "role": "user",
+                    "content": f"{query}\n\n[An image was attached, but vision processing is temporarily unavailable. Ask for a clear description or screenshot details before diagnosing.]"
+                }]
+                completion = get_groq_client().chat.completions.create(
+                    model="openai/gpt-oss-120b",
+                    messages=fallback_messages,
+                    max_tokens=1024
+                )
+                answer = completion.choices[0].message.content
+            except Exception as fallback_error:
+                print(f"Groq fallback error: {fallback_error}")
+                answer = "⚠️ The AI service could not process the message right now. Please try a smaller image again, or send the text from the screenshot."
+        else:
+            answer = "⚠️ The AI service could not complete this request right now. Please try again."
 
     # 6. Save text memory
     history.append({"role": "user", "content": query})
