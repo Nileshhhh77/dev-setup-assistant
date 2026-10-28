@@ -97,6 +97,10 @@ async def serve_signup():
         return HTMLResponse(content="<h1>Signup page not found.</h1>")
 
 
+@app.get("/health")
+async def health():
+    return JSONResponse(content={"status": "ok"})
+
 @app.get("/login")
 async def serve_login():
     try:

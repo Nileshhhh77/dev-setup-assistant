@@ -2,7 +2,6 @@ import os
 import base64
 import sqlite3
 import chainlit as cl
-from qdrant_client import QdrantClient
 from groq import Groq
 from dotenv import load_dotenv
 from passlib.context import CryptContext
@@ -35,27 +34,7 @@ def init_user_db():
 init_user_db()
 
 # --- CONNECT TO SERVICES ---
-qdrant = None
-embedder = None
 groq_client = None
-
-
-def get_embedder():
-    global embedder
-    if embedder is None:
-        from sentence_transformers import SentenceTransformer
-        embedder = SentenceTransformer("all-MiniLM-L6-v2")
-    return embedder
-
-
-def get_qdrant():
-    global qdrant
-    if qdrant is None:
-        url = os.getenv("QDRANT_URL")
-        api_key = os.getenv("QDRANT_API_KEY")
-        if url:
-            qdrant = QdrantClient(url=url, api_key=api_key or None)
-    return qdrant
 
 
 def get_groq_client():
@@ -126,27 +105,10 @@ async def main(message: cl.Message):
     query = message.content
     history = cl.user_session.get("history") or []
     
-    # 1. Search Qdrant for relevant text context
+    # Keep retrieval lightweight on free hosting; use the Groq model directly.
     context = ""
-    try:
-        vector_store = get_qdrant()
-        if vector_store is None:
-            raise RuntimeError("Qdrant is not configured")
-        query_vec = get_embedder().encode(query).tolist()
-        search_result = vector_store.query_points(
-            collection_name="dev_setup",
-            query=query_vec,
-            limit=3
-        )
-        context = "\n\n".join([
-            str(result.payload.get("text", ""))
-            for result in search_result.points
-            if result.payload
-        ])
-    except Exception as error:
-        print(f"Knowledge search error: {error}")
 
-    # 2. Check for uploaded images
+    # 1. Check for uploaded images
     image_data = None
     if message.elements:
         for element in message.elements:
@@ -160,7 +122,7 @@ async def main(message: cl.Message):
                     image_data = f"data:{element.mime};base64,{base64_image}"
                 break
 
-    # 3. Build a focused, user-friendly system prompt
+    # 2. Build a focused, user-friendly system prompt
     profile = cl.user_session.get("chat_profile") or "Windows"
     system_content = f"""You are a calm, precise developer setup assistant.
 The user's selected operating system is {profile}. Always give commands for this system unless they explicitly ask for another one.
@@ -171,7 +133,7 @@ For troubleshooting, ask for or explain the exact error, operating system, tool 
 Use this verified knowledge when relevant:
 {context if context else "No local knowledge match was found; use careful general guidance."}"""
 
-    # 4. Build the messages for Groq
+    # 3. Build the messages for Groq
     messages_for_groq = [{"role": "system", "content": system_content}]
     
     # Add text history (Groq needs this to be standard text format)

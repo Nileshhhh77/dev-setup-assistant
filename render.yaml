@@ -3,7 +3,7 @@ services:
     name: dev-setup-assistant
     runtime: docker
     plan: free
-    healthCheckPath: /login
+    healthCheckPath: /health
     autoDeploy: true
     envVars:
       - key: GROQ_API_KEY
