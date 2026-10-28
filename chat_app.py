@@ -36,9 +36,33 @@ def init_user_db():
 init_user_db()
 
 # --- CONNECT TO SERVICES ---
-qdrant = QdrantClient(url=os.getenv("QDRANT_URL"), api_key=os.getenv("QDRANT_API_KEY"))
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+qdrant = None
+embedder = None
+groq_client = None
+
+
+def get_embedder():
+    global embedder
+    if embedder is None:
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    return embedder
+
+
+def get_qdrant():
+    global qdrant
+    if qdrant is None:
+        url = os.getenv("QDRANT_URL")
+        api_key = os.getenv("QDRANT_API_KEY")
+        if url:
+            qdrant = QdrantClient(url=url, api_key=api_key or None)
+    return qdrant
+
+
+def get_groq_client():
+    global groq_client
+    if groq_client is None:
+        groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    return groq_client
 
 # --- LOGIN CALLBACK ---
 @cl.password_auth_callback
@@ -105,8 +129,11 @@ async def main(message: cl.Message):
     # 1. Search Qdrant for relevant text context
     context = ""
     try:
-        query_vec = embedder.encode(query).tolist()
-        search_result = qdrant.query_points(
+        vector_store = get_qdrant()
+        if vector_store is None:
+            raise RuntimeError("Qdrant is not configured")
+        query_vec = get_embedder().encode(query).tolist()
+        search_result = vector_store.query_points(
             collection_name="dev_setup",
             query=query_vec,
             limit=3
@@ -166,7 +193,7 @@ Use this verified knowledge when relevant:
 
     # 5. Call Groq
     try:
-        completion = groq_client.chat.completions.create(
+        completion = get_groq_client().chat.completions.create(
             model=model_to_use,
             messages=messages_for_groq,
             max_tokens=1024
