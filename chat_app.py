@@ -41,7 +41,10 @@ groq_client = None
 def get_groq_client():
     global groq_client
     if groq_client is None:
-        groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError("GROQ_API_KEY is not configured")
+        groq_client = Groq(api_key=api_key, timeout=45.0, max_retries=2)
     return groq_client
 
 # --- LOGIN CALLBACK ---
@@ -194,9 +197,9 @@ Use this verified knowledge when relevant:
                 answer = completion.choices[0].message.content
             except Exception as fallback_error:
                 print(f"Groq fallback error: {fallback_error}")
-                answer = "⚠️ The AI service could not process the message right now. Please try a smaller image again, or send the text from the screenshot."
+                answer = "⚠️ The AI service is temporarily unreachable from the hosted server. This is not an image-size problem; please wait a minute and try again."
         else:
-            answer = "⚠️ The AI service could not complete this request right now. Please try again."
+            answer = "⚠️ The AI service is temporarily unreachable from the hosted server. Please wait a minute and try again."
 
     # 6. Save text memory
     history.append({"role": "user", "content": query})
