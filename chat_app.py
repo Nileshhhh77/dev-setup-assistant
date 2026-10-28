@@ -4,6 +4,7 @@ import io
 import sqlite3
 import chainlit as cl
 from groq import Groq
+import httpx
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 
@@ -44,7 +45,12 @@ def get_groq_client():
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
             raise RuntimeError("GROQ_API_KEY is not configured")
-        groq_client = Groq(api_key=api_key, timeout=45.0, max_retries=2)
+        http_client = httpx.Client(
+            timeout=httpx.Timeout(45.0, connect=20.0),
+            limits=httpx.Limits(max_connections=3, max_keepalive_connections=1),
+            trust_env=False,
+        )
+        groq_client = Groq(api_key=api_key, http_client=http_client, timeout=45.0, max_retries=2)
     return groq_client
 
 # --- LOGIN CALLBACK ---
@@ -182,7 +188,7 @@ Use this verified knowledge when relevant:
         )
         answer = completion.choices[0].message.content
     except Exception as e:
-        print(f"Groq API error ({model_to_use}): {e}")
+        print(f"Groq API error ({model_to_use}) [{type(e).__name__}]: {e}")
         if image_data:
             try:
                 fallback_messages = messages_for_groq[:-1] + [{

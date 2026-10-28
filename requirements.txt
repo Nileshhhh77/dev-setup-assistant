@@ -1,6 +1,7 @@
 chainlit
 Pillow
 groq
+httpx
 python-dotenv
 passlib[bcrypt]
 fastapi
